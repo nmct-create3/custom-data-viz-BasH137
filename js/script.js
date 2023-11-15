@@ -3,6 +3,8 @@ const $legendEl = document.querySelector(`.js-legend`);
 const $chartEl = document.querySelector(`.js-chart`);
 const $controlsEl = document.querySelector(`.js-controls`);
 const $toggleEl = document.querySelector(`.js-theme-toggle`);
+const app__controls = document.querySelector(".app__controls");
+
 // empty object to store the data
 let data;
 
@@ -12,12 +14,18 @@ const cos = Math.cos;
 const sin = Math.sin;
 const π = Math.PI;
 
-const f_matrix_times = (([[a, b], [c, d]], [x, y]) => [a * x + b * y, c * x + d * y]);
-const f_rotate_matrix = (x => [[cos(x), -sin(x)], [sin(x), cos(x)]]);
-const f_vec_add = (([a1, a2], [b1, b2]) => [a1 + b1, a2 + b2]);
+const f_matrix_times = ([[a, b], [c, d]], [x, y]) => [
+  a * x + b * y,
+  c * x + d * y,
+];
+const f_rotate_matrix = (x) => [
+  [cos(x), -sin(x)],
+  [sin(x), cos(x)],
+];
+const f_vec_add = ([a1, a2], [b1, b2]) => [a1 + b1, a2 + b2];
 
-const drawArc = (([cx, cy], [rx, ry], [t1, Δ], φ,) => {
-    /* [
+const drawArc = ([cx, cy], [rx, ry], [t1, Δ], φ) => {
+  /* [
     returns a SVG path element that represent a ellipse.
     cx,cy → center of ellipse
     rx,ry → major minor radius
@@ -28,21 +36,35 @@ const drawArc = (([cx, cy], [rx, ry], [t1, Δ], φ,) => {
     URL: SVG Circle Arc http://xahlee.info/js/svg_circle_arc.html
     Version 2019-06-19
      ] */
-    // convert t1 from degree to radian
-    t1 = t1 / 360 * 2 * π;
-    // convert Δ from degree to radian
-    Δ = Δ / 360 * 2 * π;
-    Δ = Δ % (2 * π);
-    // convert φ from degree to radian
-    φ = φ / 360 * 2 * π;
-    const rotMatrix = f_rotate_matrix(φ);
-    const [sX, sY] = (f_vec_add(f_matrix_times(rotMatrix, [rx * cos(t1), ry * sin(t1)]), [cx, cy]));
-    const [eX, eY] = (f_vec_add(f_matrix_times(rotMatrix, [rx * cos(t1 + Δ), ry * sin(t1 + Δ)]), [cx, cy]));
-    const fA = ((Δ > π) ? 1 : 0);
-    const fS = ((Δ > 0) ? 1 : 0);
-    const d = `M ${sX} ${sY} A ${[rx, ry, φ / (2 * π) * 360, fA, fS, eX, eY].join(" ")}`;
-    return d;
-});
+  // convert t1 from degree to radian
+  t1 = (t1 / 360) * 2 * π;
+  // convert Δ from degree to radian
+  Δ = (Δ / 360) * 2 * π;
+  Δ = Δ % (2 * π);
+  // convert φ from degree to radian
+  φ = (φ / 360) * 2 * π;
+  const rotMatrix = f_rotate_matrix(φ);
+  const [sX, sY] = f_vec_add(
+    f_matrix_times(rotMatrix, [rx * cos(t1), ry * sin(t1)]),
+    [cx, cy]
+  );
+  const [eX, eY] = f_vec_add(
+    f_matrix_times(rotMatrix, [rx * cos(t1 + Δ), ry * sin(t1 + Δ)]),
+    [cx, cy]
+  );
+  const fA = Δ > π ? 1 : 0;
+  const fS = Δ > 0 ? 1 : 0;
+  const d = `M ${sX} ${sY} A ${[
+    rx,
+    ry,
+    (φ / (2 * π)) * 360,
+    fA,
+    fS,
+    eX,
+    eY,
+  ].join(" ")}`;
+  return d;
+};
 
 // get the data with async and start the chain of functions
 // pass the data to the next function in the chain
@@ -64,10 +86,81 @@ const drawArc = (([cx, cy], [rx, ry], [t1, Δ], φ,) => {
 // the theme toggle should remember your choice in localStorage
 // and it should sync with system changes
 
-// init function
+// Function to create radio buttons with labels
+function createRadioButtons(partyData) {
+    let counter = 1;
+  
+    // Iterate through each party in the JSON data
+    for (const party in partyData) {
+      const radioBtn = document.createElement("input");
+  
+      radioBtn.addEventListener("change", () => {
+        // Call the function to create legend when the radio button value changes
+        createLegend(partyData);
+  
+        // Update the chart based on the selected party
+        createChart(partyData);
+      });
+  
+      if (counter === 1) {
+        radioBtn.checked = true;
+      }
+      const radioBtnId = `partyRadio${counter++}`;
+      radioBtn.type = "radio";
+      radioBtn.name = "party";
+      radioBtn.id = radioBtnId;
+      radioBtn.value = party;
+      radioBtn.classList.add("u-display-none");
+  
+      const label = document.createElement("label");
+      label.htmlFor = radioBtnId;
+      label.innerHTML = party;
+      label.classList.add("radio-label");
+  
+      // Append the radio button and label to the container
+      app__controls.appendChild(radioBtn);
+      app__controls.appendChild(label);
+    }
+    createLegend(partyData);
+  }
+
+function createLegend(partyData) {
+  // Get the selected party
+  let selectedParty = document.querySelector(
+    'input[name="party"]:checked'
+  ).value;
+
+  // Get the ages data for the selected party   
+  let selectedPartyAges = partyData[selectedParty].ages;
+
+  // Create legend based on age groups
+  $legendEl.innerHTML = Object.keys(selectedPartyAges)
+    .map((ageGroup, i) => {
+      return `<li style="--legendColor: var(--color-${
+        i + 1
+      })" class="legend__item">
+        <span class="legend__key">${ageGroup}</span>
+        <span class="legend__value">${selectedPartyAges[ageGroup]}</span>
+      </li>`;
+    })
+    .join("");
+
+}
+
+
+let fetchJsonData = () =>
+  fetch("./assets/data/data.json")
+    .then((response) => response.json())
+    .then((data) => {
+      // Call the function to create radio buttons when the data is loaded
+      createRadioButtons(data);
+    })
+    .catch((error) => console.error("Error fetching data:", error));
+
+// Call the function to create radio buttons when the DOM is loaded
 
 const init = () => {
-
+  fetchJsonData();
 };
 
-init();
+document.addEventListener("DOMContentLoaded", init());
